@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -80,8 +82,8 @@ class Handler extends ExceptionHandler
         }
         if ($exception instanceof AuthenticationException) {
             return $this->response()
-                ->message("Please login to continue")
-                ->data($exception->getMessage())
+                ->message($exception->getMessage())
+                ->data(null)
                 ->send(403);
         }
         if ($exception instanceof AuthorizationException) {

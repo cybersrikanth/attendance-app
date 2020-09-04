@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Attendance;
+use App\Helpers\HolidayHelper;
 use App\Helpers\ResponseHelper;
 use App\Helpers\TimeHelper;
+use App\Leave;
 use App\User;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -19,7 +21,7 @@ class AttendanceController extends Controller
 
     public static function getMyAttendance($date, $id)
     {
-        return Attendance::where([
+        return Attendance::with(["student"])->where([
             ["attendance_for", $date],
             ["teacher_id", $id]
         ])->get()->all();
@@ -28,23 +30,36 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $userId = $request->user()["id"];
+        $alreadyTook = true;
         $date = strtotime($request->input('date'));
         if (TimeHelper::isFuture($date)) {
             throw new HttpException(422, "invalid date");
         }
 
-        $data = self::getMyAttendance(TimeHelper::formatedDate($date),$userId );
+        $holiday = new HolidayHelper($date);
+        $holiday = $holiday->checkHoliday();
+        $data = self::getMyAttendance(TimeHelper::formatedDate($date), $userId);
 
         if (!$data) {
+            $alreadyTook = false;
             $data = User::where("role", User::ROLES[0])->get()->all();
             $data = User::toList($data);
-            $data = Attendance::mapStates($data, $userId, TimeHelper::formatedDate($date), true);
+            $leaves = Leave::where([
+                ["startDate", "<=", TimeHelper::formatedDate($date)],
+                ["endDate", ">=", TimeHelper::formatedDate(($date))]
+            ])->get()->all();
+            $data = Leave::mapUsersToLeave($leaves, $data);
         }
+        $data = Attendance::mapStates($data, $userId, TimeHelper::formatedDate($date), true);
 
 
         return ResponseHelper::response()
             ->message("students")
-            ->data($data)
+            ->data([
+                "alreadyTook" => $alreadyTook,
+                "holiday" => isset($holiday[0]["name"]) ? $holiday[0]["name"] : false,
+                "nameList" => $data
+            ])
             ->send(200);
     }
 
@@ -62,9 +77,9 @@ class AttendanceController extends Controller
         }
         $userId = $request->user()["id"];
         $validatedRequest = $this->validate($request, [
-            "data.*.id" => "required|exists:users,id",
+            "data.*.student_id" => "required|exists:users,id",
             "data.*.state" => "required|in:" . implode(",", array_keys(Attendance::STATE)),
-
+            "overrideHoliday" => "required|boolean"
         ]);
 
         $myAttendance = self::getMyAttendance(TimeHelper::formatedDate($date), $userId);
@@ -72,10 +87,15 @@ class AttendanceController extends Controller
         if ($myAttendance) {
             throw new HttpException(422, "You already took attendence for the date");
         }
+        if (!$validatedRequest["overrideHoliday"]) {
+            $holiday = new HolidayHelper($date);
+            $holiday = $holiday->checkHoliday();
+            if (isset($holiday[0]["name"])) {
+                throw new HttpException(422, $holiday[0]["name"] . " is holiday");
+            }
+        }
 
         $newAttendance = Attendance::mapStates($validatedRequest["data"], $userId, TimeHelper::formatedDate($date));
-
-
 
         $newAttendance = Attendance::insert($newAttendance);
         return ResponseHelper::response()
@@ -102,9 +122,43 @@ class AttendanceController extends Controller
      * @param  \App\Attendance  $attendance
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Attendance $attendance)
+    public function update(Request $request)
     {
-        //
+        $userId = $request->user()["id"];
+        $validatedRequest = $this->validate($request, [
+            "data.*.id" => "required|exists:attendances,id",
+            "data.*.state" => "required|in:" . implode(",", Attendance::STATES),
+        ]);
+        $present = [];
+        $absent = [];
+
+        foreach ($validatedRequest["data"] as $record) {
+            switch ($record["state"]) {
+                case Attendance::STATES[1]:
+                    array_push($present, $record["id"]);
+                    continue;
+                case Attendance::STATES[0]:
+                    array_push($absent, $record["id"]);
+                    continue;
+                default:
+                    continue;
+            }
+        }
+
+        if ($present) {
+            Attendance::wherein("id", $present)->update([
+                "state" => Attendance::STATE["present"]
+            ]);
+        }
+        if ($absent) {
+            Attendance::wherein("id", $absent)->update([
+                "state" => Attendance::STATE["absent"]
+            ]);
+        }
+        return ResponseHelper::response()
+            ->message("attendance updated")
+            ->data(null)
+            ->send(200);
     }
 
     /**
