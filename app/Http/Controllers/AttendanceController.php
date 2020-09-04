@@ -57,7 +57,7 @@ class AttendanceController extends Controller
             ->message("students")
             ->data([
                 "alreadyTook" => $alreadyTook,
-                "holiday" => isset($holiday[0]["name"]) ? $holiday[0]["name"] : false,
+                "holiday" => isset($holiday["name"]) ? $holiday["name"] : false,
                 "nameList" => $data
             ])
             ->send(200);
@@ -90,8 +90,8 @@ class AttendanceController extends Controller
         if (!$validatedRequest["overrideHoliday"]) {
             $holiday = new HolidayHelper($date);
             $holiday = $holiday->checkHoliday();
-            if (isset($holiday[0]["name"])) {
-                throw new HttpException(422, $holiday[0]["name"] . " is holiday");
+            if (isset($holiday["name"])) {
+                throw new HttpException(422, $holiday["name"] . " is holiday");
             }
         }
 
