@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Leave extends Model
 {
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class);
+    }
+
     protected $fillable = [
         'student_id', 'startDate', "endDate", "reason"
     ];

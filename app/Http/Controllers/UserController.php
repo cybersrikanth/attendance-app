@@ -21,21 +21,7 @@ class UserController extends Controller
         //
     }
 
-    // public function getAttendence(Request $request)
-    // {
-    //     $date = $request->input('date');
-    //     return ResponseHelper::response()
-    //         ->message("students")
-    //         ->data($date)
-    //         ->send(200);
-    // }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -52,11 +38,46 @@ class UserController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * @OA\Post(
+     ** path="/api/user/login",
+     *   tags={"Auth"},
+     *   summary="Login",
+     *   operationId="login",
      *
-     * @param  \App\User  $user
-     * @return \Illuminate\Http\Response
-     */
+     * @OA\RequestBody(
+     *    required=true,
+     *    description="Pass user credentials",
+     *    @OA\JsonContent(
+     *       required={"email","password"},
+     *       @OA\Property(property="email", type="string", format="email", example="user1@mail.com"),
+     *       @OA\Property(property="password", type="string", format="password", example="PassWord12345"),
+     *    ),
+     * ),
+     *   @OA\Response(
+     *      response=200,
+     *       description="Success",
+     *      @OA\MediaType(
+     *           mediaType="application/json",
+     *      )
+     *   ),
+     *   @OA\Response(
+     *      response=401,
+     *       description="Unauthenticated"
+     *   ),
+     *   @OA\Response(
+     *      response=400,
+     *      description="Bad Request"
+     *   ),
+     *   @OA\Response(
+     *      response=404,
+     *      description="not found"
+     *   ),
+     *      @OA\Response(
+     *          response=403,
+     *          description="Forbidden"
+     *      )
+     *)
+     **/
     public function login(Request $request)
     {
         $loginData = $request->validate([

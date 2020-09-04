@@ -15,6 +15,15 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 |
 */
 
+app()->bind('test_user', function () {
+    return new \App\User();
+});
+
+Route::get('/', function () {
+    $example = resolve('test_user');
+    dd($example);
+});
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -38,6 +47,8 @@ Route::group(["middleware" => ["auth:api"]], function () {
 
     Route::group(["middleware" => ["role:admin"]], function () {
         Route::get('/admin/leave', 'LeaveController@index');
+        Route::get('/admin/leave/{leave}', 'LeaveController@show');
+        Route::get('/admin/explore', 'AdminController@explore');
     });
 });
 

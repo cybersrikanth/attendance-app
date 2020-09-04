@@ -13,12 +13,51 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AttendanceController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
 
+    /**
+     * @OA\Get(
+     ** path="/api/attendance",
+     *   tags={"Attendance"},
+     *   summary="Get Attendance",
+     *   operationId="attendance_get",
+     *
+     * @OA\Parameter(
+     *      name="date",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="string"
+     *      )
+     *   ),
+     *   @OA\Response(
+     *      response=200,
+     *       description="Success",
+     *      @OA\MediaType(
+     *           mediaType="application/json",
+     *      )
+     *   ),
+     * 
+     *   @OA\Response(
+     *      response=401,
+     *       description="Unauthenticated",
+     * 
+     *   ),
+     *   @OA\Response(
+     *      response=400,
+     *      description="Bad Request"
+     *   ),
+     *   @OA\Response(
+     *      response=404,
+     *      description="not found"
+     *   ),
+     *      @OA\Response(
+     *          response=403,
+     *          description="Forbidden"
+     *      ),
+     * security= {"apikey": {}} ,
+     * 
+     *)
+     **/
     public static function getMyAttendance($date, $id)
     {
         return Attendance::with(["student"])->where([
@@ -101,7 +140,7 @@ class AttendanceController extends Controller
         return ResponseHelper::response()
             ->message("attendance posted")
             ->data($newAttendance)
-            ->send(200);
+            ->send(201);
     }
 
     /**
@@ -136,12 +175,12 @@ class AttendanceController extends Controller
             switch ($record["state"]) {
                 case Attendance::STATES[1]:
                     array_push($present, $record["id"]);
-                    continue;
+                    continue 2;
                 case Attendance::STATES[0]:
                     array_push($absent, $record["id"]);
-                    continue;
+                    continue 2;
                 default:
-                    continue;
+                    continue 2;
             }
         }
 

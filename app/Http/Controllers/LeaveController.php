@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Attachment;
 use App\Helpers\ResponseHelper;
 use App\Leave;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+
+use function PHPSTORM_META\type;
 
 class LeaveController extends Controller
 {
@@ -16,7 +20,11 @@ class LeaveController extends Controller
      */
     public function index()
     {
-        return Leave::all()->toArray();
+        $leaves = Leave::all()->toArray();
+        return ResponseHelper::response()
+            ->message("leaves")
+            ->data($leaves)
+            ->send(200);
     }
 
     /**
@@ -28,13 +36,29 @@ class LeaveController extends Controller
     public function store(Request $request)
     {
         $userId = $request->user()["id"];
-        $validatedData = $request->validate([
+        // dd($request->input());
+        $validatedData = $this->validate($request, [
             'startDate' => 'required|date',
             'endDate' => 'required|date|after_or_equal:startDate',
-            'reason' => 'required|min:5|max:1000'
+            'reason' => 'required|min:5|max:1000',
+            'attachments' => 'max:2',
+            'attachments.*' => 'mimes:jpeg,png,pdf|max:100'
         ]);
         $validatedData["student_id"] = $userId;
+        // dd($validatedData);
+        $files = $validatedData["attachments"];
+
         $newLeave = Leave::create($validatedData);
+        $paths = [];
+        foreach ($files as $file) {
+            $path = Storage::disk('s3')->put('attachments', $file);
+            Attachment::create([
+                "leave_id" => $newLeave["id"],
+                "url" => $path
+            ]);
+            array_push($paths, $path);
+        }
+
         return ResponseHelper::response()->message("created")->data($newLeave)->send(201);
     }
 
@@ -46,7 +70,15 @@ class LeaveController extends Controller
      */
     public function show(Leave $leave)
     {
-        //
+        $attachments = $leave->attachments;
+        for ($i = 0; $i < count($attachments); $i++) {
+            $attachments[$i]["url"] = Storage::disk('s3')->temporaryUrl($attachments[$i]["url"], now()->addMinutes(1));
+        }
+        $leave['attachments'] = $attachments;
+        return ResponseHelper::response()
+            ->message("Leave")
+            ->data($leave)
+            ->send(200);
     }
 
     /**

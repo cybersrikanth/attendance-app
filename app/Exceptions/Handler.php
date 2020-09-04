@@ -96,6 +96,7 @@ class Handler extends ExceptionHandler
         //     ->message("Bad Request")
         //     ->data("Something went wrong")
         //     ->send(400);
+        // dd($exception->getMessage());
         return parent::render($request, $exception);
     }
 }
