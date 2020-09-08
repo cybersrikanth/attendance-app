@@ -29,6 +29,7 @@ class LeaveTest extends TestCase
         $leave = factory(Leave::class)->make([
             "attachments" => [UploadedFile::fake()->create('document.jpg', 80)]
         ])->toArray();
+        dd(__FUNCTION__);
         $response = $this->useAuth(0)->post("/api/leave", $leave);
         $response->assertStatus(201);
     }
