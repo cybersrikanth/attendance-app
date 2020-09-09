@@ -59,7 +59,7 @@ class LeaveController extends Controller
             array_push($paths, $path);
         }
 
-        return ResponseHelper::response()->message("created")->data($newLeave)->send(201);
+        return ResponseHelper::response()->message("created")->data($newLeave->toArray())->send(201);
     }
 
     /**

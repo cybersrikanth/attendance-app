@@ -3,7 +3,9 @@
 namespace Tests\Unit;
 
 use App\Attendance;
+use App\Helpers\DocHelper;
 use App\User;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class AttendanceTest extends TestCase
@@ -17,45 +19,56 @@ class AttendanceTest extends TestCase
             ]
         ]
     ];
+
     private function useAuth(int $role): object
     {
-
         $user = factory(User::class)->create(["role" => User::ROLES[$role]]);
         $this->actingAs($user, "api");
+        $this->setRequestHeader("Authorization", "Bearer {{Token}}");
         return $this;
     }
 
     public function testAttendanceGet()
     {
         factory(Attendance::class, 5)->create(["state" => rand(0, 1)]);
-        $response = $this->useAuth(1)->get("/api/attendance?date=" . date("Y-m-d"));
+        $this->request["uri"] = "/api/attendance?date=" . date("Y-m-d");
+        $response = $this->useAuth(1)->fire();
         $response->assertJsonStructure($this->attendance_structure);
+        DocHelper::make(__FUNCTION__, $this->request, $response);
     }
 
     public function testAttendanceGetValidation()
     {
         $attendances = factory(Attendance::class, 5)->create(["state" => rand(0, 1)]);
-        $response = $this->useAuth(1)->get("/api/attendance?date=" . date("2100-01-01"));
+        $this->request["uri"] = "/api/attendance?date=" . date("2100-01-01");
+        $response = $this->useAuth(1)->fire();
         $response->assertStatus(422)->assertJsonStructure($this->error_structure);
     }
 
     public function testAttendancePost()
     {
         $attendances = factory(Attendance::class, 5)->make()->toArray();
-        $response = $this->useAuth(1)->post("/api/attendance?date=" . date("Y-m-d"), [
+        $this->request["uri"] = "/api/attendance?date=" . date("Y-m-d");
+        $this->request["method"] = "POST";
+        $this->request["body"] = [
             "data" => $attendances,
             "overrideHoliday" => false
-        ]);
+        ];
+        $response = $this->useAuth(1)->fire();
         $response->assertStatus(201);
+        DocHelper::make(__FUNCTION__, $this->request, $response);
     }
 
     public function testAttendancePostValidation()
     {
         $attendances = factory(Attendance::class, 5)->make()->toArray();
-        $response = $this->useAuth(0)->post("/api/attendance?date=" . date("Y-m-d"), [
+        $this->request["uri"] = "/api/attendance?date=" . date("Y-m-d");
+        $this->request["method"] = "POST";
+        $this->request["body"] = [
             "data" => $attendances,
             "overrideHoliday" => false
-        ]);
+        ];
+        $response = $this->useAuth(0)->fire();
         $response->assertStatus(401);
     }
 
@@ -68,10 +81,14 @@ class AttendanceTest extends TestCase
                 "state" => Attendance::STATES[rand(0, 1)]
             ];
         }, $attendances);
-        $response = $this->useAuth(1)->patch("/api/attendance", [
+        $this->request["uri"] = "/api/attendance";
+        $this->request["method"] = "PATCH";
+        $this->request["body"] = [
             "data" => $attendances,
-        ]);
+        ];
+        $response = $this->useAuth(1)->fire();
         $response->assertStatus(200);
+        DocHelper::make(__FUNCTION__, $this->request, $response);
     }
 
     public function testAttendanceUpdateValidation()
@@ -83,9 +100,12 @@ class AttendanceTest extends TestCase
                 "state" => rand(0, 2)
             ];
         }, $attendances);
-        $response = $this->useAuth(1)->patch("/api/attendance", [
+        $this->request["uri"] = "/api/attendance";
+        $this->request["method"] = "PATCH";
+        $this->request["body"] = [
             "data" => $attendances,
-        ]);
+        ];
+        $response = $this->useAuth(1)->fire();
         $response->assertStatus(422);
     }
 }

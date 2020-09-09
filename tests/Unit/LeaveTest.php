@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Helpers\DocHelper;
 use App\Leave;
 use App\User;
 use Illuminate\Http\UploadedFile;
@@ -11,16 +12,21 @@ class LeaveTest extends TestCase
 {
     private function useAuth(int $role): object
     {
-
-        $user = factory(User::class)->create(["role" => User::ROLES[$role]]);
+        $my_role = User::ROLES[$role];
+        $user = factory(User::class)->create(["role" => $my_role]);
         $this->actingAs($user, "api");
+        $this->setRequestHeader("Authorization", "Bearer {{" . $my_role . " token}}");
         return $this;
     }
 
     public function testLeaveApplyWithoutAttachment()
     {
         $leave = factory(Leave::class)->make()->toArray();
-        $response = $this->useAuth(0)->post("/api/leave", $leave);
+        $this->request["method"] = "POST";
+        $this->request["uri"] = "/api/leave";
+//        $this->setRequestHeader("content-type", "multipart/form-data");
+        $this->request["body"] = $leave;
+        $response = $this->useAuth(0)->fire();
         $response->assertStatus(201);
     }
 
@@ -29,9 +35,12 @@ class LeaveTest extends TestCase
         $leave = factory(Leave::class)->make([
             "attachments" => [UploadedFile::fake()->create('document.jpg', 80)]
         ])->toArray();
-        dd(__FUNCTION__);
-        $response = $this->useAuth(0)->post("/api/leave", $leave);
+        $this->request["uri"] = "/api/leave";
+        $this->request["method"] = "POST";
+        $this->request["body"] = $leave;
+        $response = $this->useAuth(0)->fire();
         $response->assertStatus(201);
+        DocHelper::make(__FUNCTION__, $this->request, $response);
     }
 
     public function testLeaveApplyAuthValidation()
@@ -58,6 +67,7 @@ class LeaveTest extends TestCase
         $response = $this->useAuth(0)->post("/api/leave", $leave);
         $response->assertStatus(422);
     }
+
     public function testLeaveApplyAttachmentCountValidation()
     {
         $leave = factory(Leave::class)->make([
